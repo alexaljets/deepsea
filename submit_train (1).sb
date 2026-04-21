@@ -1,0 +1,38 @@
+#!/bin/bash
+#SBATCH --job-name=deepsea_train
+#SBATCH --time=24:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=64GB
+#SBATCH --gres=gpu:1
+#SBATCH --partition=gpu
+#SBATCH --output=/mnt/gs21/scratch/aljetsal/deepsea_project/logs/train_%j.out
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=aljetsal@msu.edu
+
+echo "Job started: $(date)"
+echo "Node: $(hostname)"
+echo "GPU info:"
+nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
+
+PROJECT=/mnt/gs21/scratch/aljetsal/deepsea_project
+mkdir -p ${PROJECT}/logs
+mkdir -p ${PROJECT}/checkpoints
+
+module purge
+module load Miniforge3/24.3.0-0
+conda activate deepsea
+
+cd ${PROJECT}
+
+python train.py \
+    --data_dir           ${PROJECT}/data_out \
+    --output_dir         ${PROJECT}/checkpoints \
+    --epochs             60 \
+    --batch_size         128 \
+    --lr                 1e-3 \
+    --num_workers        4 \
+    --log_every          200 \
+    --max_train_samples  500000
+
+echo "Job finished: $(date)"

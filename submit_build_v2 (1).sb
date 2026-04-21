@@ -1,0 +1,77 @@
+#!/bin/bash
+#SBATCH --job-name=deepsea_build
+#SBATCH --time=24:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64GB
+#SBATCH --partition=main
+#SBATCH --output=/mnt/gs21/scratch/aljetsal/deepsea_project/logs/build_%j.out
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=aljetsal@msu.edu
+
+# Submit this as a dependency on the download job:
+#   sbatch --dependency=afterok:<download_job_id> submit_build_v2.sb
+
+echo "Job started: $(date)"
+echo "Node: $(hostname)"
+
+PROJECT=/mnt/gs21/scratch/aljetsal/deepsea_project
+REPO=${PROJECT}/build-deepsea-training-dataset
+mkdir -p ${PROJECT}/logs
+mkdir -p ${PROJECT}/data_out
+
+# ── Load modules ──────────────────────────────────────────────────────────────
+module purge
+module load Miniforge3/24.3.0-0
+conda activate deepsea
+
+# ── Verify Python deps ────────────────────────────────────────────────────────
+python -c "import h5py, numpy, scipy" 2>/dev/null
+if [ $? -ne 0 ]; then
+    echo "Installing missing Python deps..."
+    pip install h5py numpy scipy pybedtools --quiet
+fi
+
+# ── Sanity checks before starting ────────────────────────────────────────────
+if [ ! -f "${PROJECT}/hg19.fa" ]; then
+    echo "ERROR: hg19.fa not found. Did the download job complete?"
+    exit 1
+fi
+
+BED_COUNT=$(find ${REPO}/data/ -name "*.narrowPeak" | wc -l)
+echo "Found ${BED_COUNT} BED files"
+if [ "${BED_COUNT}" -lt 100 ]; then
+    echo "ERROR: Too few BED files (${BED_COUNT}). Download may have failed."
+    exit 1
+fi
+
+# ── Run the dataset builder ───────────────────────────────────────────────────
+echo ""
+echo "Starting build.py at $(date)"
+cd ${REPO}
+
+python build.py \
+    --metadata_file data/deepsea_metadata.tsv \
+    --pos data/allTFs.pos.bed \
+    --beds_folder data/ \
+    --hg19 ${PROJECT}/hg19.fa \
+    --train_size 2200000 \
+    --valid_size 4000 \
+    --train_filename          ${PROJECT}/data_out/train.mat \
+    --valid_filename          ${PROJECT}/data_out/valid.mat \
+    --test_filename           ${PROJECT}/data_out/test.mat \
+    --train_data_filename     ${PROJECT}/data_out/train_data.npy \
+    --train_labels_filename   ${PROJECT}/data_out/train_labels.npy \
+    --valid_data_filename     ${PROJECT}/data_out/valid_data.npy \
+    --valid_labels_filename   ${PROJECT}/data_out/valid_labels.npy \
+    --test_data_filename      ${PROJECT}/data_out/test_data.npy \
+    --test_labels_filename    ${PROJECT}/data_out/test_labels.npy
+
+# ── Report outputs ────────────────────────────────────────────────────────────
+echo ""
+echo "Build finished at $(date)"
+echo "Output files:"
+ls -lh ${PROJECT}/data_out/
+echo ""
+echo "Disk usage:"
+du -sh ${PROJECT}/data_out/
