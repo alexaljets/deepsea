@@ -4,7 +4,7 @@ Recreation of DeepSEA (Zhou, 2015) in PyTorch
 # DeepSEA CNN Reproduction — CMSE 410
 
 ## Overview
-One paragraph: what DeepSEA is, what you reproduced, what results you got.
+DeepSEA is a deep learning framework developed by Zhou and Troyanskaya at Princeton University in 2015 that uses a Convolutional Neural Network to predict chromatin features from raw DNA sequences, specifically taking 1,000 base-pair sequences as input and outputting probability predictions for 919 distinct chromatin features including transcription factor binding sites, DNase hypersensitivity sites, and histone modifications derived from the ENCODE and Roadmap Epigenomics projects. This project reproduced the DeepSEA architecture from scratch in PyTorch, rebuilding the training dataset from source ENCODE BED files after the original Princeton data bundle was found to be offline, and training the model on 500,000 sequences using an NVIDIA V100 GPU on the MSU HPCC. The reproduction achieved a mean test AUROC of 0.871 across 919 chromatin features on held-out chromosomes 8 and 9, compared to the original paper's reported AUROC of 0.933 on the full 4.4 million sequence dataset, with 374 of 919 features exceeding AUROC 0.9; saliency map analysis confirmed the model learned biologically meaningful sequence features, and a model randomization test verified that these patterns were data-dependent rather than architectural artifacts.
 
 ## Results
 - Test AUROC: 0.871 (paper: 0.933)
